@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Weather Predictor</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Segoe UI,Arial,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .container{background:#fff;border-radius:18px;padding:36px;max-width:720px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25)}
+    h1{color:#667eea;text-align:center;margin-bottom:6px;font-size:2.2rem}
+    .subtitle{color:#666;text-align:center;margin-bottom:20px}
+    .input-group{margin-bottom:18px;position:relative}
+    label{display:block;margin-bottom:8px;font-weight:600;color:#333}
+    input{width:100%;padding:12px;border:2px solid #e6e6e6;border-radius:8px;font-size:15px}
+    input:focus{outline:none;border-color:#667eea}
+    .search-results{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid #e6e6e6;border-top:none;border-radius:0 0 8px 8px;max-height:260px;overflow:auto;z-index:999;display:none}
+    .search-result-item{padding:10px;border-bottom:1px solid #f2f2f2;cursor:pointer}
+    .search-result-item:hover{background:#f6f9ff}
+    .coordinates{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+    .button-row{display:flex;gap:10px;margin-bottom:6px}
+    button{flex:1;padding:12px;border-radius:8px;border:none;font-weight:700;cursor:pointer}
+    .predict-btn{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+    .loc-btn{background:#28a745;color:#fff}
+    .loading{display:none;text-align:center;margin:12px 0}
+    .loading.show{display:block}
+    .spinner{width:36px;height:36px;border:4px solid #eee;border-top-color:#667eea;border-radius:50%;margin:8px auto;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .error{display:none;background:#ff6b6b;color:#fff;padding:12px;border-radius:8px;margin:12px 0}
+    .error.show{display:block}
+    .result{display:none;background:linear-gradient(135deg,#f5f7fa,#cfe2f8);padding:18px;border-radius:12px;margin-top:18px}
+    .result.show{display:block}
+    .temps{display:flex;justify-content:space-around;margin:14px 0}
+    .temp{ text-align:center }
+    .temp .value{font-size:2.6rem;color:#27418a;font-weight:800}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}
+    .card{background:#fff;padding:12px;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.06)}
+    .card .big{font-size:1.25rem;font-weight:700}
+    .meta{margin-top:10px;color:#333;font-weight:600}
+    @media (max-width:520px){ .temps{flex-direction:column;gap:12px} .coords{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><i class="fas fa-cloud-sun"></i> Weather Predictor</h1>
+    <div class="subtitle">AI-powered 24-hour forecast</div>
+
+    <div class="input-group">
+      <label for="q">Search location</label>
+      <input id="q" type="text" placeholder="Type a city, place or address..." autocomplete="off" />
+      <div id="results" class="search-results"></div>
+    </div>
+
+    <div class="coordinates">
+      <div>
+        <label>Latitude</label>
+        <input id="lat" readonly value="28.6139" />
+      </div>
+      <div>
+        <label>Longitude</label>
+        <input id="lon" readonly value="77.2090" />
+      </div>
+    </div>
+
+    <div class="button-row">
+      <button class="predict-btn" id="btnPredict">Predict</button>
+      <button class="loc-btn" id="btnLoc"><i class="fas fa-location-arrow"></i> Use my location</button>
+    </div>
+
+    <div id="loading" class="loading"><div class="spinner"></div><div style="color:#666">Predicting…</div></div>
+    <div id="error" class="error"></div>
+
+    <div id="result" class="result">
+      <div class="temps">
+        <div class="temp">
+          <div class="label">Current</div>
+          <div id="currentTemp" class="value">--°C</div>
+        </div>
+        <div class="temp">
+          <div class="label">Next 24h</div>
+          <div id="predictedTemp" class="value">--°C</div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card"><div class="card-ico">🌡️</div><div id="feelsLike" class="big">--°C</div><div class="meta">Feels like</div></div>
+        <div class="card"><div class="card-ico">💧</div><div id="humidity" class="big">--%</div><div class="meta">Humidity</div></div>
+        <div class="card"><div class="card-ico">🌧️</div><div id="precipitation" class="big">-- mm</div><div class="meta">Precipitation</div></div>
+        <div class="card"><div class="card-ico">💨</div><div id="windSpeed" class="big">-- km/h</div><div class="meta">Wind speed</div></div>
+      </div>
+
+      <div style="margin-top:14px">
+        <div><strong>Change: </strong><span id="tempChange">--</span></div>
+        <div><strong>Predicted at: </strong><span id="predictionTime">--</span></div>
+        <div><strong>Forecast for: </strong><span id="forecastFor">--</span></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* Frontend JS: debounced search, robust result handling, and predict */
+const qEl = document.getElementById('q');
+const resultsEl = document.getElementById('results');
+const latEl = document.getElementById('lat');
+const lonEl = document.getElementById('lon');
+const btnPredict = document.getElementById('btnPredict');
+const btnLoc = document.getElementById('btnLoc');
+const loadingEl = document.getElementById('loading');
+const errorEl = document.getElementById('error');
+const resultEl = document.getElementById('result');
+
+let debounceTimer = null;
+
+qEl.addEventListener('input', () => {
+  const v = qEl.value.trim();
+  clearTimeout(debounceTimer);
+  if (v.length < 3) { resultsEl.style.display='none'; return; }
+  resultsEl.style.display = 'block';
+  resultsEl.innerHTML = '<div style="padding:10px;color:#666;text-align:center">Searching…</div>';
+  debounceTimer = setTimeout(() => fetchLocations(v), 350);
+});
+
+async function fetchLocations(q){
+  try {
+    const res = await fetch(`/search_location?query=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      resultsEl.innerHTML = '<div style="padding:10px;color:#777;text-align:center">No results</div>';
+      return;
+    }
+    resultsEl.innerHTML = '';
+    data.forEach(loc=>{
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+      item.innerHTML = `<strong>${loc.name}</strong><div style="font-size:12px;color:#666">${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}</div>`;
+      item.onclick = () => {
+        qEl.value = loc.name.split(',')[0];
+        latEl.value = loc.latitude;
+        lonEl.value = loc.longitude;
+        resultsEl.style.display = 'none';
+      };
+      resultsEl.appendChild(item);
+    });
+  } catch (e) {
+    resultsEl.innerHTML = '<div style="padding:10px;color:#777;text-align:center">Search failed</div>';
+  }
+}
+
+document.addEventListener('click', (ev)=> {
+  if (!resultsEl.contains(ev.target) && ev.target !== qEl) resultsEl.style.display='none';
+});
+
+btnLoc.addEventListener('click', () => {
+  if (!navigator.geolocation) { showError('Geolocation not supported'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    latEl.value = pos.coords.latitude.toFixed(4);
+    lonEl.value = pos.coords.longitude.toFixed(4);
+    qEl.value = 'Current location';
+  }, ()=> showError('Unable to get location'));
+});
+
+btnPredict.addEventListener('click', async () => {
+  const lat = parseFloat(latEl.value);
+  const lon = parseFloat(lonEl.value);
+  if (Number.isNaN(lat) || Number.isNaN(lon)) { showError('Please select a valid location.'); return; }
+
+  loadingEl.classList.add('show');
+  errorEl.classList.remove('show');
+  resultEl.classList.remove('show');
+
+  try {
+    const res = await fetch('/predict', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ latitude: lat, longitude: lon })
+    });
+    const data = await res.json();
+    if (!res.ok) { throw new Error(data.error || 'Prediction failed'); }
+
+    // Backend may return either top-level fields OR nested current_weather; handle both
+    const curWeather = data.current_weather || {};
+    const current_temperature = ('current_temperature' in data) ? data.current_temperature : (curWeather.temperature_2m || curWeather.current_temp || null);
+    const predicted_temperature = data.predicted_temperature ?? null;
+
+    const feels_like = data.feels_like ?? (curWeather.apparent_temperature ?? current_temperature);
+    const humidity = data.humidity ?? (curWeather.relative_humidity_2m ?? curWeather.humidity ?? null);
+    const precipitation = data.precipitation ?? (curWeather.precipitation ?? null);
+    const wind_speed = data.wind_speed ?? (curWeather.wind_speed_10m ?? curWeather.wind_speed ?? null);
+
+    // Populate UI (safe checks)
+    document.getElementById('currentTemp').textContent = (current_temperature !== null) ? `${Number(current_temperature).toFixed(2)}°C` : '--';
+    document.getElementById('predictedTemp').textContent = (predicted_temperature !== null) ? `${Number(predicted_temperature).toFixed(2)}°C` : '--';
+    document.getElementById('feelsLike').textContent = (feels_like !== null) ? `${Number(feels_like).toFixed(1)}°C` : '--';
+    document.getElementById('humidity').textContent = (humidity !== null) ? `${Math.round(humidity)}%` : '--';
+    document.getElementById('precipitation').textContent = (precipitation !== null) ? `${Number(precipitation).toFixed(2)} mm` : '--';
+    document.getElementById('windSpeed').textContent = (wind_speed !== null) ? `${Number(wind_speed).toFixed(2)} km/h` : '--';
+
+    if ('prediction_time' in data) document.getElementById('predictionTime').textContent = data.prediction_time;
+    if ('forecast_for' in data) document.getElementById('forecastFor').textContent = data.forecast_for;
+
+    const change = (predicted_temperature !== null && current_temperature !== null) ? (Number(predicted_temperature) - Number(current_temperature)).toFixed(2) : '--';
+    document.getElementById('tempChange').textContent = (change === '--') ? '--' : `${change}°C`;
+
+    resultEl.classList.add('show');
+
+  } catch (err) {
+    showError(err.message || 'Prediction failed');
+  } finally {
+    loadingEl.classList.remove('show');
+  }
+});
+
+function showError(msg){
+  errorEl.textContent = msg;
+  errorEl.classList.add('show');
+}
+</script>
+</body>
+</html>
